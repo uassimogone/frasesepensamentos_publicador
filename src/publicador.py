@@ -1,148 +1,180 @@
+import base64
+import json
 import os
 import sys
-import json
 import time
-import base64
 import traceback
-import requests
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-# Credenciais
+import requests
+
+
 IG_USER_ID = os.environ["INSTAGRAM_USER_ID"]
 IG_TOKEN = os.environ["INSTAGRAM_ACCESS_TOKEN"]
 IMGBB_KEY = os.environ["IMGBB_API_KEY"]
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+GRAPH_API_VERSION = os.environ.get("META_GRAPH_API_VERSION", "v25.0")
+GRAPH_API_HOST = os.environ.get(
+    "META_GRAPH_API_HOST", "https://graph.facebook.com"
+).rstrip("/")
 
 DB_DIR = Path("database")
 DATA_FILE = DB_DIR / "posts_do_dia.json"
+TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
-def avisar_telegram(texto):
+
+def notify_telegram(text: str) -> None:
     try:
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": CHAT_ID, "text": texto}, timeout=10)
-    except Exception as e:
-        print(f"Erro ao avisar Telegram: {e}")
+        response = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": CHAT_ID, "text": text},
+            timeout=15,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"Erro ao avisar Telegram: {exc}")
 
-def hospedar_imgbb(caminho_imagem):
-    print(f" -> [Etapa 1] Hospedando imagem no ImgBB: {caminho_imagem}")
-    with open(caminho_imagem, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode("utf-8")
-    
-    resp = requests.post("https://api.imgbb.com/1/upload", data={"key": IMGBB_KEY, "image": img_b64}, timeout=30)
-    
-    if resp.status_code != 200:
-        raise Exception(f"ImgBB HTTP {resp.status_code}: {resp.text[:200]}")
-        
+
+def upload_to_imgbb(image_path: Path) -> str:
+    print(f" -> [Etapa 1] Hospedando imagem no ImgBB: {image_path}")
+    with image_path.open("rb") as image_file:
+        image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
+
+    response = requests.post(
+        "https://api.imgbb.com/1/upload",
+        data={"key": IMGBB_KEY, "image": image_b64},
+        timeout=30,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"ImgBB HTTP {response.status_code}: {response.text[:300]}"
+        )
+
     try:
-        url = resp.json()["data"]["url"]
-        print(f" -> [Etapa 1 OK] URL ImgBB gerada com sucesso!")
-        return url
-    except Exception:
-        raise Exception(f"ImgBB não retornou JSON válido: {resp.text[:200]}")
+        image_url = response.json()["data"]["url"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"ImgBB não retornou uma URL válida: {response.text[:300]}"
+        ) from exc
 
-def publicar_meta(image_url, caption):
-    print(" -> [Etapa 2] Iniciando injeção na Graph API da Meta...")
-    base_url = "https://graph.instagram.com/v20.0"
+    print(" -> [Etapa 1 OK] URL pública criada.")
+    return image_url
 
-    # Criar Container (Correção de arquitetura: auth na URL, payload no Body)
-    # Retry: logo após o upload no ImgBB, a Meta às vezes tenta buscar a
-    # imagem antes dela propagar no CDN e recusa com "could not be fetched".
+
+def publish_story(image_url: str) -> str:
+    print(" -> [Etapa 2] Criando contêiner de Story na Meta...")
+    base_url = f"{GRAPH_API_HOST}/{GRAPH_API_VERSION}"
     container_id = None
-    for tentativa in range(1, 4):
-        resp = requests.post(
+    last_response = {}
+
+    for attempt in range(1, 4):
+        response = requests.post(
             f"{base_url}/{IG_USER_ID}/media",
             params={"access_token": IG_TOKEN},
-            data={"image_url": image_url, "caption": caption},
-            timeout=30
+            data={"image_url": image_url, "media_type": "STORIES"},
+            timeout=30,
         )
-        res_json = resp.json()
-        container_id = res_json.get("id")
+        try:
+            last_response = response.json()
+        except ValueError:
+            last_response = {"http_status": response.status_code, "body": response.text[:300]}
 
+        container_id = last_response.get("id")
         if container_id:
             break
 
-        print(f" -> [Etapa 2] Tentativa {tentativa}/3 negada pela Meta: {res_json}")
-        if tentativa < 3:
+        print(f" -> Tentativa {attempt}/3 recusada pela Meta: {last_response}")
+        if attempt < 3:
             time.sleep(10)
 
     if not container_id:
-        raise Exception(f"Meta negou a criação do Container: {res_json}")
-    
-    print(f" -> [Etapa 2.1] Container {container_id} criado. Aguardando renderização da Meta...")
-    
-    # Aguardar Processamento
-    sucesso_renderizacao = False
-    for i in range(12):
+        raise RuntimeError(f"Meta negou a criação do Story: {last_response}")
+
+    print(f" -> Contêiner {container_id} criado. Aguardando processamento...")
+    for _ in range(12):
         time.sleep(10)
-        status_resp = requests.get(f"{base_url}/{container_id}", params={"fields": "status_code", "access_token": IG_TOKEN}, timeout=20).json()
-        status = status_resp.get("status_code", "")
+        status_response = requests.get(
+            f"{base_url}/{container_id}",
+            params={
+                "fields": "status_code,status",
+                "access_token": IG_TOKEN,
+            },
+            timeout=20,
+        ).json()
+        status = status_response.get("status_code", "")
         print(f"     ... Status da Meta: {status}")
-        
-        if status == "FINISHED": 
-            sucesso_renderizacao = True
+        if status == "FINISHED":
             break
-        if status == "ERROR":
-            raise Exception(f"Meta destruiu o Container (Erro de Processamento): {status_resp}")
-            
-    if not sucesso_renderizacao:
-        raise Exception("Timeout: A Meta demorou mais de 2 minutos para processar a foto e o sistema abortou.")
-        
-    # Publicar no Feed (auth na URL, payload no Body)
-    print(" -> [Etapa 3] Container pronto. Disparando para o Feed do Instagram...")
-    pub_resp = requests.post(
+        if status in {"ERROR", "EXPIRED"}:
+            raise RuntimeError(
+                f"Erro no processamento do Story pela Meta: {status_response}"
+            )
+    else:
+        raise RuntimeError("A Meta demorou mais de dois minutos para processar o Story.")
+
+    print(" -> [Etapa 3] Publicando o Story...")
+    publish_response = requests.post(
         f"{base_url}/{IG_USER_ID}/media_publish",
         params={"access_token": IG_TOKEN},
         data={"creation_id": container_id},
-        timeout=30
+        timeout=30,
     )
+    try:
+        publish_payload = publish_response.json()
+    except ValueError:
+        publish_payload = {}
 
-    if pub_resp.status_code != 200:
-        raise Exception(f"Erro na publicação final (Feed): {pub_resp.text[:200]}")
+    media_id = publish_payload.get("id")
+    if publish_response.status_code != 200 or not media_id:
+        raise RuntimeError(
+            f"Erro na publicação final do Story: {publish_response.text[:300]}"
+        )
 
-    print(" -> [Etapa 3 OK] Post publicado no feed!")
+    print(" -> [Etapa 3 OK] Story publicado!")
+    return media_id
 
-def rodar_fila():
+
+def run_queue() -> None:
     if not DATA_FILE.exists():
-        print("Arquivo JSON não encontrado. O coletor rodou?")
+        print("Fila não encontrada. Execute o coletor primeiro.")
         sys.exit(1)
 
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        dados = json.load(f)
-
-    post_da_vez = next((p for p in dados["posts"] if not p["publicado"]), None)
-    
-    if not post_da_vez:
-        print("Todos os posts de hoje já foram publicados!")
+    data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    story = next(
+        (item for item in data.get("posts", []) if not item.get("publicado")),
+        None,
+    )
+    if not story:
+        print("Não há Story pendente para publicar.")
         return
 
-    print(f"Iniciando publicação do Post {post_da_vez['id']}...")
-    caminho_img = DB_DIR / post_da_vez["imagem"]
-    
-    if not caminho_img.exists():
-        msg_erro = f"Arquivo de imagem '{post_da_vez['imagem']}' não foi encontrado."
-        print(f"ERRO FATAL: {msg_erro}")
-        avisar_telegram(f"❌ Erro estrutural no Post {post_da_vez['id']}: {msg_erro}")
-        sys.exit(1)
-    
+    image_path = DB_DIR / story["imagem"]
+    if not image_path.exists():
+        message = f"Arquivo de imagem '{story['imagem']}' não foi encontrado."
+        notify_telegram(f"❌ Erro estrutural no Story: {message}")
+        raise FileNotFoundError(message)
+
     try:
-        url_publica = hospedar_imgbb(caminho_img)
-        publicar_meta(url_publica, post_da_vez["legenda"])
-        
-        # Trava de Segurança
-        post_da_vez["publicado"] = True
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(dados, f, ensure_ascii=False, indent=2)
-            
-        avisar_telegram(f"✅ Instagram Autônomo: Post {post_da_vez['id']}/3 publicado com sucesso!")
-        print(f"Post {post_da_vez['id']} finalizado com maestria.")
-        
-    except Exception as e:
-        print("\n" + "="*50)
-        print("🚨 ERRO DETECTADO NA EXECUÇÃO 🚨")
+        public_url = upload_to_imgbb(image_path)
+        media_id = publish_story(public_url)
+        story["publicado"] = True
+        story["instagram_media_id"] = media_id
+        story["publicado_em"] = datetime.now(TIMEZONE).isoformat()
+        DATA_FILE.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        notify_telegram("✅ Story diário publicado com sucesso no Instagram.")
+    except Exception as exc:
+        print("\n" + "=" * 50)
         traceback.print_exc()
-        print("="*50 + "\n")
-        avisar_telegram(f"❌ ERRO ao publicar slide {post_da_vez['id']}:\n{e}")
+        print("=" * 50 + "\n")
+        notify_telegram(f"❌ Erro ao publicar o Story:\n{exc}")
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    rodar_fila()
+    run_queue()
