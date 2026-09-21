@@ -29,3 +29,23 @@ Os workflows estão disponíveis apenas para execução manual. Os agendamentos 
 ## Requisitos da conta Meta
 
 A conta do Instagram precisa ser profissional e estar autorizada para publicação de conteúdo pela API. Para Stories por meio do fluxo com Facebook Login, a Meta exige conta comercial vinculada a uma Página e permissão `instagram_content_publish`.
+
+
+## Nova Linha Editorial — carrosséis do feed
+
+O mesmo repositório agora possui um pipeline isolado para os carrosséis da nova linha editorial, sem alterar o fluxo de Stories existente.
+
+Fluxo:
+1. o criador envia um álbum ao Telegram;
+2. `novalinha_coletor.py` baixa o álbum e a legenda;
+3. o item entra em `database/novalinha_posts.json` com `aprovado=false`;
+4. a aprovação continua sendo feita no ChatGPT, que altera apenas esse campo;
+5. `novalinha_publicador.py` publica somente itens `aprovado=true` e ainda não publicados;
+6. a publicação usa Instagram Graph API com contêiner CAROUSEL.
+
+Agendas:
+- coleta: 07:00 de Brasília;
+- publicação: 09:00 de Brasília;
+- ambos também aceitam execução manual.
+
+O publicador nunca publica um conteúdo apenas porque chegou ao Telegram. A aprovação explícita no estado da fila continua obrigatória.
