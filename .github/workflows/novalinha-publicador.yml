@@ -2,7 +2,7 @@ name: 4 - Publicador Nova Linha Editorial
 
 on:
   schedule:
-    - cron: "0 12 * * *" # 09:00 em Brasília
+    - cron: "0 10 * * *" # 07:00 em Brasília
   workflow_dispatch:
 
 jobs:
