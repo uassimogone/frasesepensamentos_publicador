@@ -86,40 +86,48 @@ async def main():
             print("Nenhum carrossel novo encontrado.")
             return
 
-        _, key, items = sorted(candidates)[-1]
-        items.sort(key=lambda m: m.id)
-        first_caption = next((m.message for m in items if m.message), "")
-        pauta_id = first_caption.split("—", 1)[0].strip() if "—" in first_caption else f"telegram-{items[0].id}"
+        collected = 0
+        for _, key, items in sorted(candidates):
+            items.sort(key=lambda m: m.id)
+            first_caption = next((m.message for m in items if m.message), "")
+            pauta_id = first_caption.split("—", 1)[0].strip() if "—" in first_caption else f"telegram-{items[0].id}"
 
-        image_names = []
-        for idx, msg in enumerate(items, start=1):
-            name = f"novalinha_{pauta_id}_{idx:02d}.jpg".replace("/", "-")
-            path = DB_DIR / name
-            await client.download_media(msg, file=str(path))
-            image_names.append(name)
+            image_names = []
+            for idx, msg in enumerate(items, start=1):
+                name = f"novalinha_{pauta_id}_{idx:02d}.jpg".replace("/", "-")
+                path = DB_DIR / name
+                await client.download_media(msg, file=str(path))
+                image_names.append(name)
 
-        last_album_id = max(m.id for m in items)
-        caption = ""
-        for m in messages:
-            if m.id > last_album_id and not m.media and (m.message or "").startswith("Legenda:"):
-                caption = (m.message or "")[len("Legenda:"):].strip()
-                break
+            last_album_id = max(m.id for m in items)
+            next_album_first_id = min(
+                [min(m.id for m in other_items) for _, other_key, other_items in candidates if min(m.id for m in other_items) > last_album_id],
+                default=10**18,
+            )
+            caption = ""
+            for m in messages:
+                if last_album_id < m.id < next_album_first_id and not m.media and (m.message or "").startswith("Legenda:"):
+                    caption = (m.message or "")[len("Legenda:"):].strip()
+                    break
 
-        data.setdefault("posts", []).append({
-            "id": pauta_id,
-            "imagens": image_names,
-            "caption": caption,
-            "telegram_grouped_id": key,
-            "telegram_message_id": items[0].id,
-            "coletado_em": datetime.now(TIMEZONE).isoformat(),
-            "aprovado": False,
-            "publicado": False,
-        })
+            data.setdefault("posts", []).append({
+                "id": pauta_id,
+                "imagens": image_names,
+                "caption": caption,
+                "telegram_grouped_id": key,
+                "telegram_message_id": items[0].id,
+                "coletado_em": datetime.now(TIMEZONE).isoformat(),
+                "aprovado": False,
+                "publicado": False,
+            })
+            known.add(key)
+            state["ultimo_grouped_id"] = key
+            collected += 1
+
         save_data(data)
-        state["ultimo_grouped_id"] = key
         state["atualizado_em"] = datetime.now(TIMEZONE).isoformat()
         save_state(state)
-        print(f"Carrossel {pauta_id} coletado. Aguardando aprovação.")
+        print(f"{collected} carrossel(is) coletado(s). Aguardando aprovação.")
 
 
 if __name__ == "__main__":
