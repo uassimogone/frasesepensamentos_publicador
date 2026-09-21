@@ -1,19 +1,15 @@
-import asyncio
 import json
-import os
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-from telethon.tl.types import MessageMediaPhoto
+import requests
 
 
-API_ID = int(os.environ["TELEGRAM_API_ID"])
-API_HASH = os.environ["TELEGRAM_API_HASH"]
-STRING_SESSION = os.environ["TELEGRAM_STRING_SESSION"]
-CONTENT_CHAT_ID = int(os.environ["TELEGRAM_CONTENT_CHAT_ID"])
+CREATOR_REPO = "uassimogone/criativo_novalinhaeditorial_criacao"
+BRANCH = "main"
+API_BASE = f"https://api.github.com/repos/{CREATOR_REPO}/contents"
+RAW_BASE = f"https://raw.githubusercontent.com/{CREATOR_REPO}/{BRANCH}"
 
 DB_DIR = Path("database")
 DB_DIR.mkdir(exist_ok=True)
@@ -22,113 +18,113 @@ STATE_FILE = DB_DIR / "novalinha_estado.json"
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
 
-def load_data():
-    if not DATA_FILE.exists():
-        return {"posts": []}
+def load_json(path, default):
+    if not path.exists():
+        return default
     try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {"posts": []}
+        return default
 
 
-def save_data(data):
-    DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def save_json(path, data):
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def load_state():
-    if not STATE_FILE.exists():
-        return {}
-    try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+def api_list(path):
+    r = requests.get(
+        f"{API_BASE}/{path}",
+        params={"ref": BRANCH},
+        headers={"User-Agent": "UassiNovaLinhaPublisher/1.0"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
 
 
-def save_state(state):
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def fetch_json_raw(path):
+    r = requests.get(f"{RAW_BASE}/{path}", timeout=30)
+    r.raise_for_status()
+    return r.json()
 
 
-def is_today(message):
-    dt = message.date
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(TIMEZONE).date() == datetime.now(TIMEZONE).date()
+def download_raw(path, target):
+    r = requests.get(f"{RAW_BASE}/{path}", timeout=45)
+    r.raise_for_status()
+    target.write_bytes(r.content)
 
 
-async def main():
-    data = load_data()
-    known = {str(p.get("telegram_grouped_id") or p.get("telegram_message_id")) for p in data.get("posts", [])}
-    state = load_state()
+def main():
+    data = load_json(DATA_FILE, {"posts": []})
+    state = load_json(STATE_FILE, {})
+    known = {
+        f"{p.get('id')}::v{p.get('visual_revision', 1)}"
+        for p in data.get("posts", [])
+    }
 
-    async with TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH) as client:
-        await client.get_dialogs()
-        chat = await client.get_entity(CONTENT_CHAT_ID)
-        messages = [m async for m in client.iter_messages(chat, limit=120)]
-        messages = [m for m in messages if is_today(m)]
-        messages.sort(key=lambda m: m.id)
+    dates = [
+        item["name"]
+        for item in api_list("output")
+        if item.get("type") == "dir"
+    ]
+    dates = sorted(dates, reverse=True)[:7]
 
-        groups = {}
-        for m in messages:
-            if not isinstance(m.media, MessageMediaPhoto):
+    collected = 0
+    for date_dir in sorted(dates):
+        packages = [
+            item for item in api_list(f"output/{date_dir}")
+            if item.get("type") == "dir"
+        ]
+        for pkg in packages:
+            manifest_path = f"output/{date_dir}/{pkg['name']}/manifest.json"
+            try:
+                manifest = fetch_json_raw(manifest_path)
+            except requests.RequestException:
                 continue
-            key = str(m.grouped_id or m.id)
-            groups.setdefault(key, []).append(m)
 
-        candidates = []
-        for key, items in groups.items():
+            if manifest.get("formato") != "CARROSSEL":
+                continue
+            if manifest.get("status") != "READY_TO_PUBLISH":
+                continue
+
+            revision = int(manifest.get("visual_revision", 1))
+            key = f"{manifest.get('id')}::v{revision}"
             if key in known:
                 continue
-            combined = "\n".join((m.message or "") for m in items)
-            if "CARROSSEL PRONTO" in combined:
-                candidates.append((max(m.id for m in items), key, items))
-
-        if not candidates:
-            print("Nenhum carrossel novo encontrado.")
-            return
-
-        collected = 0
-        for _, key, items in sorted(candidates):
-            items.sort(key=lambda m: m.id)
-            first_caption = next((m.message for m in items if m.message), "")
-            pauta_id = first_caption.split("—", 1)[0].strip() if "—" in first_caption else f"telegram-{items[0].id}"
 
             image_names = []
-            for idx, msg in enumerate(items, start=1):
-                name = f"novalinha_{pauta_id}_{idx:02d}.jpg".replace("/", "-")
-                path = DB_DIR / name
-                await client.download_media(msg, file=str(path))
-                image_names.append(name)
+            for idx, asset in enumerate(manifest.get("assets", []), start=1):
+                if not str(asset).lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                    continue
+                remote_path = f"output/{date_dir}/{pkg['name']}/{asset}"
+                local_name = f"novalinha_{manifest['id']}_v{revision}_{idx:02d}{Path(asset).suffix}"
+                local_path = DB_DIR / local_name
+                download_raw(remote_path, local_path)
+                image_names.append(local_name)
 
-            last_album_id = max(m.id for m in items)
-            next_album_first_id = min(
-                [min(m.id for m in other_items) for _, other_key, other_items in candidates if min(m.id for m in other_items) > last_album_id],
-                default=10**18,
-            )
-            caption = ""
-            for m in messages:
-                if last_album_id < m.id < next_album_first_id and not m.media and (m.message or "").startswith("Legenda:"):
-                    caption = (m.message or "")[len("Legenda:"):].strip()
-                    break
+            if len(image_names) < 2:
+                continue
 
             data.setdefault("posts", []).append({
-                "id": pauta_id,
+                "id": manifest["id"],
+                "visual_revision": revision,
+                "visual_family": manifest.get("visual_family", ""),
                 "imagens": image_names,
-                "caption": caption,
-                "telegram_grouped_id": key,
-                "telegram_message_id": items[0].id,
+                "caption": manifest.get("caption", ""),
+                "creator_manifest": manifest_path,
                 "coletado_em": datetime.now(TIMEZONE).isoformat(),
                 "aprovado": False,
                 "publicado": False,
             })
             known.add(key)
-            state["ultimo_grouped_id"] = key
             collected += 1
 
-        save_data(data)
-        state["atualizado_em"] = datetime.now(TIMEZONE).isoformat()
-        save_state(state)
-        print(f"{collected} carrossel(is) coletado(s). Aguardando aprovação.")
+    state["ultima_coleta_em"] = datetime.now(TIMEZONE).isoformat()
+    state["novos_na_ultima_coleta"] = collected
+    save_json(DATA_FILE, data)
+    save_json(STATE_FILE, state)
+    print(f"{collected} carrossel(is) novo(s) coletado(s) do repositório de criação.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
