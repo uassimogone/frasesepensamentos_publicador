@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "0 10 * * *" # 07:00 em Brasília
   workflow_dispatch:
+  push:
+    paths:
+      - "database/novalinha_trigger.txt"
 
 jobs:
   coletar:
