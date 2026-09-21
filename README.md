@@ -36,12 +36,13 @@ A conta do Instagram precisa ser profissional e estar autorizada para publicaç�
 O mesmo repositório agora possui um pipeline isolado para os carrosséis da nova linha editorial, sem alterar o fluxo de Stories existente.
 
 Fluxo:
-1. o criador envia um álbum ao Telegram;
-2. `novalinha_coletor.py` baixa o álbum e a legenda;
-3. o item entra em `database/novalinha_posts.json` com `aprovado=false`;
-4. a aprovação continua sendo feita no ChatGPT, que altera apenas esse campo;
-5. `novalinha_publicador.py` publica somente itens `aprovado=true` e ainda não publicados;
-6. a publicação usa Instagram Graph API com contêiner CAROUSEL.
+1. o criador gera o pacote e o envia ao Telegram para prévia;
+2. o mesmo pacote é persistido no repositório de criação com status `READY_TO_PUBLISH`;
+3. `novalinha_coletor.py` coleta diretamente esses pacotes do repositório de criação;
+4. o item entra em `database/novalinha_posts.json` com `aprovado=false`;
+5. a aprovação continua sendo feita no ChatGPT, que altera apenas esse campo;
+6. `novalinha_publicador.py` publica somente itens `aprovado=true` e ainda não publicados;
+7. a publicação usa Instagram Graph API com contêiner CAROUSEL.
 
 Agendas:
 - coleta: 07:00 de Brasília;
