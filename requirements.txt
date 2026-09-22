@@ -1,2 +1,4 @@
 telethon==1.35.0
 requests==2.31.0
+cairosvg==2.7.1
+Pillow==10.4.0
