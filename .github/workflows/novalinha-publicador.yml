@@ -5,6 +5,10 @@ on:
     - cron: "0 10 * * *" # 07:00 em Brasília
   workflow_dispatch:
 
+concurrency:
+  group: novalinha-instagram-publisher
+  cancel-in-progress: false
+
 jobs:
   publicar:
     runs-on: ubuntu-latest
@@ -12,12 +16,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+
       - run: python -m pip install -r requirements.txt
-      - name: Publicar próximo carrossel aprovado
+
+      - name: Publicar próximo conteúdo final da fila
         run: python src/novalinha_publicador.py
         env:
           INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
@@ -27,12 +34,13 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
           META_GRAPH_API_VERSION: "v25.0"
           META_GRAPH_API_HOST: "https://graph.facebook.com"
-      - name: Persistir estado
-        if: success()
+
+      - name: Persistir estado da fila
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add database/
-          git diff --cached --quiet || git commit -m "chore: registrar carrossel publicado"
+          git add database/novalinha_posts.json
+          git diff --cached --quiet || git commit -m "chore: atualizar fila nova linha editorial"
           git pull --rebase origin main
           git push
