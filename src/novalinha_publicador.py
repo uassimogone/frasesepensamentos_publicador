@@ -8,7 +8,9 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import cairosvg
 import requests
+from PIL import Image
 
 
 IG_USER_ID = os.environ["INSTAGRAM_USER_ID"]
@@ -35,6 +37,54 @@ def notify(text):
         ).raise_for_status()
     except requests.RequestException as exc:
         print(f"Falha no aviso Telegram: {exc}")
+
+
+def materialize_asset(asset_path: Path) -> Path:
+    """Converte o arquivo final para JPEG aceito pelo Instagram, sem alterar o layout."""
+    suffix = asset_path.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return asset_path
+
+    runtime_dir = Path("runtime_assets")
+    runtime_dir.mkdir(exist_ok=True)
+    target = runtime_dir / f"{asset_path.stem}.jpg"
+
+    if suffix == ".svg":
+        svg_text = asset_path.read_text(encoding="utf-8")
+
+        # O slide 1 usa fotografia real externa. Incorporamos os bytes no SVG
+        # antes da conversão para tornar a renderização determinística.
+        marker = "{{COW_PHOTO_URL}}"
+        if marker in svg_text:
+            cow_url = (
+                "https://commons.wikimedia.org/wiki/Special:Redirect/file/"
+                "Cow_on_pasture%2C_Ehrenbach.jpg"
+            )
+            response = requests.get(cow_url, timeout=60)
+            response.raise_for_status()
+            encoded = base64.b64encode(response.content).decode("ascii")
+            svg_text = svg_text.replace(
+                marker,
+                f"data:image/jpeg;base64,{encoded}",
+            )
+
+        png_bytes = cairosvg.svg2png(
+            bytestring=svg_text.encode("utf-8"),
+            output_width=1080,
+            output_height=1350,
+        )
+        png_path = runtime_dir / f"{asset_path.stem}.png"
+        png_path.write_bytes(png_bytes)
+        with Image.open(png_path) as image:
+            image.convert("RGB").save(target, "JPEG", quality=94, optimize=True)
+        return target
+
+    if suffix in {".png", ".webp"}:
+        with Image.open(asset_path) as image:
+            image.convert("RGB").save(target, "JPEG", quality=94, optimize=True)
+        return target
+
+    raise RuntimeError(f"Formato de arquivo não suportado: {asset_path}")
 
 
 def upload_to_imgbb(image_path: Path) -> str:
@@ -160,7 +210,8 @@ def validate_post(post):
     if missing:
         raise FileNotFoundError("Arquivos ausentes: " + ", ".join(missing))
 
-    return tipo, paths
+    final_paths = [materialize_asset(path) for path in paths]
+    return tipo, final_paths
 
 
 def run():
