@@ -141,6 +141,10 @@ def validate_post(post):
     if status != "QUEUED":
         raise RuntimeError(f"Item {post.get('id')} não está em status QUEUED.")
 
+    scheduled_for = post.get("scheduled_for")
+    if not scheduled_for:
+        raise RuntimeError(f"Item {post.get('id')} não possui scheduled_for.")
+
     tipo = str(post.get("tipo", "")).upper()
     if tipo not in {"CARROSSEL", "ESTATICO"}:
         raise RuntimeError(f"Tipo inválido em {post.get('id')}: {tipo}")
@@ -171,9 +175,35 @@ def run():
         print("Já houve uma publicação da nova linha editorial hoje. Limite diário preservado.")
         return
 
-    post = next((p for p in posts if p.get("status") == "QUEUED"), None)
+    now = datetime.now(TIMEZONE)
+
+    def scheduled_time(post):
+        raw = post.get("scheduled_for")
+        if not raw:
+            return None
+        try:
+            dt = datetime.fromisoformat(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=TIMEZONE)
+            return dt.astimezone(TIMEZONE)
+        except ValueError:
+            return None
+
+    due = []
+    for candidate in posts:
+        if candidate.get("status") != "QUEUED":
+            continue
+        when = scheduled_time(candidate)
+        if when is None:
+            continue
+        if when <= now:
+            due.append((when, candidate))
+
+    due.sort(key=lambda item: item[0])
+    post = due[0][1] if due else None
+
     if not post:
-        print("Nenhum conteúdo final pendente na fila.")
+        print("Nenhum conteúdo com data de publicação vencida ou prevista para este horário.")
         return
 
     try:
