@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<defs>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#050607" stop-opacity="0.82"/>
+    <stop offset="55%" stop-color="#050607" stop-opacity="0.34"/>
+    <stop offset="100%" stop-color="#050607" stop-opacity="0.10"/>
+  </linearGradient>
+</defs>
+<image href="{{COW_PHOTO_URL}}" x="0" y="0" width="1080" height="1350" preserveAspectRatio="xMidYMid slice"/>
+<rect width="1080" height="1350" fill="url(#shade)"/>
+<g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#F7F4EE">
+  <text x="72" y="150" font-size="88">Discutir redução</text>
+  <text x="72" y="250" font-size="88">de jornada sem</text>
+  <text x="72" y="350" font-size="88">falar de</text>
+</g>
+<rect x="64" y="382" width="700" height="104" fill="#C91F1F"/>
+<text x="78" y="463" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="86" fill="#FFFFFF">produtividade</text>
+<g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#F7F4EE">
+  <text x="72" y="575" font-size="86">é conversa</text>
+  <text x="72" y="675" font-size="86">para boi dormir</text>
+</g>
+<text x="540" y="1284" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" letter-spacing="3" fill="#F7F4EE" opacity="0.82">@uassimogone</text>
+</svg>
