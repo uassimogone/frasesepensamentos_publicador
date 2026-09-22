@@ -1,52 +1,52 @@
-# Frases e Pensamentos — Publicador de Stories
+# Frases e Pensamentos — Publicador
 
-Automação baseada no `legaltech_publicador` para coletar uma arte do Telegram e publicá-la no Instagram Stories do perfil `@uassimogone`.
+Este repositório mantém o publicador de Stories já existente e, em pipeline isolado, o publicador da Nova Linha Editorial no feed do Instagram.
 
-## Fluxo planejado
+## Stories
 
-1. Às 04h00 (Brasília), o repositório de criação gera uma arte e envia ao bot do Telegram.
-2. Às 07h30, o coletor identifica a arte mais recente, baixa `story_01.png` e monta uma fila com um item.
-3. Às 08h00, o publicador hospeda temporariamente a imagem no ImgBB.
-4. A Meta Graph API cria e publica um contêiner com `media_type=STORIES`.
-5. A fila é marcada como publicada e o resultado é avisado no Telegram.
+O fluxo de Stories permanece separado e não deve ser alterado por mudanças na Nova Linha Editorial.
 
-## Estado de segurança
+## Nova Linha Editorial — fluxo oficial
 
-Os workflows estão disponíveis apenas para execução manual. Os agendamentos estão documentados nos arquivos YAML e somente devem ser ativados depois que todos os secrets forem configurados e um teste manual publicar no perfil correto.
+**Radar → aprovação no ChatGPT → criação final no ChatGPT → envio dos arquivos finais para o GitHub → fila de publicação → Instagram.**
 
-## Secrets necessários
+A criação visual final não é feita por este repositório. O GitHub não recria, não redimensiona e não reinterpreta a arte recebida.
 
-- `TELEGRAM_API_ID`
-- `TELEGRAM_API_HASH`
-- `TELEGRAM_STRING_SESSION`
-- `TEST_TELEGRAM_BOT_TOKEN`
-- `TEST_TELEGRAM_CHAT_ID`
-- `TELEGRAM_CONTENT_CHAT_ID` (opcional; o coletor tenta derivá-lo do token do bot)
+### Ingestão
+
+Depois que o conteúdo estiver finalizado e validado no ChatGPT:
+
+1. os arquivos finais são gravados em `queue/novalinha/<id>/`;
+2. carrosséis usam um arquivo independente por slide;
+3. a legenda e os metadados são registrados em `database/novalinha_posts.json`;
+4. o item entra diretamente com `status: "QUEUED"`;
+5. não existe uma segunda etapa de aprovação na fila.
+
+A especificação completa está em `docs/NOVALINHA_INGESTAO_CHATGPT.md`.
+
+### Publicação
+
+O workflow `.github/workflows/novalinha-publicador.yml` roda diariamente às **07:00 de Brasília** e publica no máximo **1 conteúdo por dia**.
+
+Tipos aceitos:
+- `CARROSSEL`: 2 a 7 arquivos;
+- `ESTATICO`: exatamente 1 arquivo.
+
+Estados da fila:
+- `QUEUED`: pronto para publicar;
+- `PUBLISHED`: publicado com sucesso;
+- `ERROR`: falha de publicação, exige revisão antes de nova tentativa.
+
+O publicador usa a Instagram Graph API. As imagens são hospedadas temporariamente no ImgBB apenas para fornecer URLs públicas à API da Meta.
+
+### Secrets usados pelo publicador
+
 - `INSTAGRAM_USER_ID`
 - `INSTAGRAM_ACCESS_TOKEN`
 - `IMGBB_API_KEY`
+- `TEST_TELEGRAM_BOT_TOKEN` (opcional, para aviso)
+- `TEST_TELEGRAM_CHAT_ID` (opcional, para aviso)
 
-## Requisitos da conta Meta
+### Regra de segurança
 
-A conta do Instagram precisa ser profissional e estar autorizada para publicação de conteúdo pela API. Para Stories por meio do fluxo com Facebook Login, a Meta exige conta comercial vinculada a uma Página e permissão `instagram_content_publish`.
-
-
-## Nova Linha Editorial — carrosséis do feed
-
-O mesmo repositório agora possui um pipeline isolado para os carrosséis da nova linha editorial, sem alterar o fluxo de Stories existente.
-
-Fluxo:
-1. o criador gera o pacote e o envia ao Telegram para prévia;
-2. o mesmo pacote é persistido no repositório de criação com status `READY_TO_PUBLISH`;
-3. `novalinha_coletor.py` coleta diretamente esses pacotes do repositório de criação;
-4. o item entra em `database/novalinha_posts.json` com `aprovado=false`;
-5. a aprovação continua sendo feita no ChatGPT, que altera apenas esse campo;
-6. `novalinha_publicador.py` publica somente itens `aprovado=true` e ainda não publicados;
-7. a publicação usa Instagram Graph API com contêiner CAROUSEL.
-
-Agendas:
-- coleta: 07:00 de Brasília;
-- publicação: 09:00 de Brasília;
-- ambos também aceitam execução manual.
-
-O publicador nunca publica um conteúdo apenas porque chegou ao Telegram. A aprovação explícita no estado da fila continua obrigatória.
+Somente arquivos finais produzidos e validados no ChatGPT devem entrar na fila. Pacotes antigos do renderer, itens `READY_TO_PUBLISH` do repositório de criação e conteúdos coletados do Telegram não alimentam mais este pipeline.
