@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#11171c"/>
+    <stop offset="100%" stop-color="#07090b"/>
+  </linearGradient>
+  <filter id="grain">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="12"/>
+    <feColorMatrix type="saturate" values="0"/>
+    <feComponentTransfer><feFuncA type="table" tableValues="0 0.035"/></feComponentTransfer>
+  </filter>
+</defs>
+<rect width="1080" height="1350" fill="url(#bg)"/><rect width="1080" height="1350" filter="url(#grain)" opacity="0.5"/>
+<g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#F7F4EE">
+  <text x="70" y="220" font-size="86">A redução</text>
+  <text x="70" y="318" font-size="86">da jornada</text>
+  <text x="70" y="416" font-size="86">pode até fazer</text>
+  <text x="70" y="514" font-size="86">sentido.</text>
+  <text x="70" y="690" font-size="86">Mas sem</text>
+</g>
+<rect x="62" y="720" width="840" height="108" fill="#C91F1F"/>
+<text x="78" y="801" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="79" fill="#FFFFFF">produtividade</text>
+<g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#F7F4EE">
+  <text x="70" y="910" font-size="73">é só promessa bonita</text>
+  <text x="70" y="998" font-size="73">para uma finalidade ruim.</text>
+</g>
+<text x="540" y="1284" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" letter-spacing="3" fill="#F7F4EE" opacity="0.78">@uassimogone</text>
+</svg>
