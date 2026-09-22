@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#11171c"/>
+    <stop offset="100%" stop-color="#07090b"/>
+  </linearGradient>
+  <filter id="grain">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="12"/>
+    <feColorMatrix type="saturate" values="0"/>
+    <feComponentTransfer><feFuncA type="table" tableValues="0 0.035"/></feComponentTransfer>
+  </filter>
+</defs>
+<rect width="1080" height="1350" fill="url(#bg)"/><rect width="1080" height="1350" filter="url(#grain)" opacity="0.5"/>
+<g font-family="Arial, Helvetica, sans-serif" font-weight="800" fill="#F7F4EE">
+  <text x="72" y="235" font-size="92">Jornada</text>
+  <text x="72" y="340" font-size="92">não se discute</text>
+  <text x="72" y="445" font-size="92">com o</text>
+</g>
+<rect x="64" y="475" width="690" height="112" fill="#C91F1F"/>
+<text x="78" y="560" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="90" fill="#FFFFFF">estômago.</text>
+<g font-family="Arial, Helvetica, sans-serif" font-size="47" fill="#F2EFE9">
+  <text x="76" y="720">Quando o debate ignora a produtividade,</text>
+  <text x="76" y="785">o processo e a gestão, ele vira só</text>
+  <text x="76" y="850">retórica e não conversa séria.</text>
+</g>
+<text x="540" y="1284" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" letter-spacing="3" fill="#F7F4EE" opacity="0.78">@uassimogone</text>
+</svg>
