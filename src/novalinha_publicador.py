@@ -39,14 +39,27 @@ def notify(text):
         print(f"Falha no aviso Telegram: {exc}")
 
 
-def materialize_asset(asset_path: Path) -> Path:
-    """Converte o arquivo final para JPEG aceito pelo Instagram, sem alterar o layout."""
+def materialize_asset(asset) -> Path:
+    """Baixa, quando necessário, e converte o arquivo final para JPEG aceito pelo Instagram."""
+    runtime_dir = Path("runtime_assets")
+    runtime_dir.mkdir(exist_ok=True)
+
+    asset_text = str(asset)
+    if asset_text.startswith(("https://", "http://")):
+        from urllib.parse import urlparse
+        remote_name = Path(urlparse(asset_text).path).name or "asset.png"
+        downloaded = runtime_dir / remote_name
+        response = requests.get(asset_text, timeout=60)
+        response.raise_for_status()
+        downloaded.write_bytes(response.content)
+        asset_path = downloaded
+    else:
+        asset_path = Path(asset_text)
+
     suffix = asset_path.suffix.lower()
     if suffix in {".jpg", ".jpeg"}:
         return asset_path
 
-    runtime_dir = Path("runtime_assets")
-    runtime_dir.mkdir(exist_ok=True)
     target = runtime_dir / f"{asset_path.stem}.jpg"
 
     if suffix == ".svg":
@@ -205,12 +218,12 @@ def validate_post(post):
     if tipo == "CARROSSEL" and not 2 <= len(assets) <= 7:
         raise RuntimeError("Carrossel deve possuir entre 2 e 7 arquivos.")
 
-    paths = [Path(asset) for asset in assets]
-    missing = [str(path) for path in paths if not path.exists()]
+    local_assets = [a for a in assets if not str(a).startswith(("https://", "http://"))]
+    missing = [str(a) for a in local_assets if not Path(a).exists()]
     if missing:
         raise FileNotFoundError("Arquivos ausentes: " + ", ".join(missing))
 
-    final_paths = [materialize_asset(path) for path in paths]
+    final_paths = [materialize_asset(asset) for asset in assets]
     return tipo, final_paths
 
 
