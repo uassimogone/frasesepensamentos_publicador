@@ -43,6 +43,7 @@ Após gravar os arquivos, acrescentar um item a `database/novalinha_posts.json`.
   ],
   "caption": "Legenda final",
   "status": "QUEUED",
+  "scheduled_for": "2026-09-24T07:00:00-03:00",
   "queued_at": "ISO-8601",
   "source": "chatgpt_final"
 }
@@ -73,5 +74,8 @@ Após gravar os arquivos, acrescentar um item a `database/novalinha_posts.json`.
 - Não substituir silenciosamente um item já publicado.
 - Se um conteúdo precisar ser corrigido antes da publicação, substituir os arquivos e metadados enquanto estiver em `QUEUED`.
 - Se estiver em `ERROR`, corrigir a causa e retornar manualmente o status para `QUEUED`.
-- O publicador escolhe o primeiro item `QUEUED`.
+- Todo item `QUEUED` deve possuir `scheduled_for` com data, hora e fuso.
+- O publicador ignora itens cuja data/hora ainda não chegou.
+- Entre os itens vencidos, o publicador escolhe o de `scheduled_for` mais antigo.
+- O workflow roda diariamente às 07:00 de Brasília; portanto, nesta fase, os conteúdos da Nova Linha Editorial devem ser programados para 07:00.
 - O publicador impede mais de uma publicação da Nova Linha Editorial no mesmo dia.
