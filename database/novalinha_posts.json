@@ -1,4 +1,31 @@
 {
   "schema_version": 2,
-  "posts": []
+  "posts": [
+    {
+      "id": "2026-09-21-pauta-03",
+      "tipo": "CARROSSEL",
+      "assets": [
+        "queue/novalinha/2026-09-21-pauta-03/slide_01.svg",
+        "queue/novalinha/2026-09-21-pauta-03/slide_02.svg",
+        "queue/novalinha/2026-09-21-pauta-03/slide_03.svg",
+        "queue/novalinha/2026-09-21-pauta-03/slide_04.svg",
+        "queue/novalinha/2026-09-21-pauta-03/slide_05.svg"
+      ],
+      "caption": "Reduzir jornada pode até ser uma boa discussão.\nMas tem uma parte desse debate que muita gente prefere ignorar: produtividade.\n\nSem método, processo, tecnologia e gestão, reduzir horas não corrige problema estrutural.\nSó muda o lugar da conta.\n\nE essa conta costuma aparecer em outros pontos:\nmais pressão, mais estresse, mais atraso, mais custo e menos previsibilidade.\n\nDebate sério não se faz no grito, na retórica ou na conveniência do momento.\nDebate sério exige colocar na mesa, ao mesmo tempo: produtividade, custo, tecnologia e bem-estar.\n\nSe uma dessas peças sai da conversa, a discussão fica bonita no discurso — e ruim na prática.\n\nReduzir jornada sem falar de produtividade é conversa para boi dormir.\n\n#Trabalho #Produtividade #Gestão #Empresas #Negócios #Liderança #JornadaDeTrabalho #MercadoDeTrabalho #Eficiência #uassimogone",
+      "status": "QUEUED",
+      "scheduled_for": "2026-09-24T07:00:00-03:00",
+      "queued_at": "2026-09-22T15:16:00-03:00",
+      "source": "chatgpt_final",
+      "source_assets": [
+        {
+          "slide": 1,
+          "type": "real_photo",
+          "title": "Cow on pasture, Ehrenbach",
+          "author": "Gerda Arendt",
+          "license": "CC0 1.0",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Cow_on_pasture,_Ehrenbach.jpg"
+        }
+      ]
+    }
+  ]
 }
