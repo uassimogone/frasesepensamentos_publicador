@@ -40,11 +40,14 @@
         "https://raw.githubusercontent.com/uassimogone/criativo_novalinhaeditorial_criacao/main/output/2026-09-21/2026-09-21-pauta-04/slide_05.png"
       ],
       "caption": "Quando uma atividade gera riqueza, é natural querer continuar reinvestindo nela. O problema começa quando renda, empresa e patrimônio ficam expostos ao mesmo ciclo.\n\nÉ isso que chama atenção nesse movimento de capital produzido pelo agro de Mato Grosso em direção a imóveis no litoral de Santa Catarina.\n\nNão é abandonar aquilo que fez ganhar dinheiro. É reduzir concentração.\n\nClima, commodities, câmbio, juros e custos podem afetar justamente o negócio que criou a riqueza. E patrimônio também precisa de gestão de risco.\n\nDiversificar não é desconfiar do próprio negócio.\nÉ não depender de uma única fonte para preservar o que foi construído.\n\nNo fim, a velha história dos ovos e da cesta continua fazendo sentido.\n\nPatrimônio forte não é ter tudo no mesmo lugar. É ter capacidade de atravessar ciclos diferentes sem depender de uma única atividade.\n\n#Patrimônio #Investimentos #Agronegócio #Imóveis #Diversificação #GestãoDeRisco #Negócios #Dinheiro #LongoPrazo #uassimogone",
-      "status": "QUEUED",
+      "status": "ERROR",
       "scheduled_for": "2026-09-25T18:00:00-03:00",
       "queued_at": "2026-09-22T15:30:00-03:00",
       "source": "chatgpt_final_existing_package",
-      "creator_manifest": "output/2026-09-21/2026-09-21-pauta-04/manifest.json"
+      "creator_manifest": "output/2026-09-21/2026-09-21-pauta-04/manifest.json",
+      "tentativa_em": "2026-09-25T20:49:58.976891-03:00",
+      "erro": "400 Client Error: Bad Request for url: https://api.imgbb.com/1/upload",
+      "erro_em": "2026-09-25T20:49:59.754421-03:00"
     }
   ]
 }
